@@ -7,7 +7,8 @@ import plotly.express as px
 ###############################################################################
 
 
-full_df = pd.read_csv('full_dataset.csv')
+#full_df = pd.read_csv('full_dataset.csv')
+full_df = pd.read_csv('https://raw.githubusercontent.com/WildBenji/palmares-noms-de-bordeaux/main/full_dataset.csv', encoding='utf8')
 
 
 ###############################################################################
