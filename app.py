@@ -1,6 +1,8 @@
 import pandas as pd 
 import numpy as np
 
+import plotly.express as px
+
 import dash
 from dash.dependencies import Input, Output, State
 import dash_bootstrap_components as dbc
@@ -9,7 +11,9 @@ import dash_core_components as dcc
 import dash_html_components as html
 from dash_html_components import Div 
 
-from funcs import create_palmares_from_full_dataset, create_palmares_from_name , full_df
+########################################################################################
+
+full_df = pd.read_csv('https://raw.githubusercontent.com/WildBenji/palmares-noms-de-bordeaux/main/full_dataset.csv', encoding='utf8')
 
 ########################################################################################
 ########################################################################################
@@ -24,6 +28,7 @@ app = dash.Dash(
 app.title = "Palmarès noms de Bordeaux"
 
 server = app.server
+
 
 ########################################################################################
 ########################################################################################
@@ -138,7 +143,6 @@ page_1 =  html.Div(children=[
         searchable=True,
         style={'width': '200px',
                 'margin-top': 5,
-             #   'margin-left': 20,
         },
         clearable=False,
         placeholder="Sélectionnez une année",       
@@ -157,8 +161,6 @@ page_1 =  html.Div(children=[
         clearable=False,
         style={'width': '200px',
                'margin-top': 5,
-            #   'margin-left': 20,
-              # 'display': 'inline-block'
               }
     ),
 
@@ -173,47 +175,15 @@ page_1 =  html.Div(children=[
         clearable=False,
         style={'width': '200px',
                'margin-top': 5,
-            #   'margin-left': 20,
                'margin-bottom' : 20,
-             #  'display': 'inline-block'
               }
     ),
-
-#     html.Div(
-#         dcc.Graph(
-#             id="backwards", 
-#             responsive=True,
-#             style={
-#                 "width": "100%",
-#                 "height": "100%"
-#             }
-#         ),
-#         style={
-#             "width": "100%",
-#             "height": "100%",
-#         },
-#     ),
-#     style={
-#             "width": "68%",
-#             "height": "800px",
-#             "display": "inline-block",
-#             "border": "3px #5c5c5c solid",
-#             "padding-top": "5px",
-#             "padding-left": "1px",
-#             "overflow": "hidden"
-#         }
-# )
 
 
     dcc.Graph(
          id='palmares-fig',
          style={
-              #  "position": "absolute",
-               # "top": "50%",
-                #"left": "50%",
-                #"transform": "translate(-50%, -50%)"
                 'width': '49%', 
-                #'display': 'inline-block',
                 'vertical-align' : 'middle',
                 'horizontal-align' : 'middle'
                 }
@@ -255,9 +225,9 @@ page_2 =  html.Div(children=[
 
 page_3 = html.Div([dcc.Markdown("""## À propos du site
 
-Site conçu sous licence ouverte par [Benjamin Baret](https://www.linkedin.com/in/benjamin-baret-6957471bb), Data Analyst & Scientist
+Site conçu sous licence ouverte par [Benjamin Baret](https://www.linkedin.com/in/benjamin-baret-6957471bb), Data Analyst
 
-Données publiques de la ville de Bordeaux consultables à ce [lien](https://opendata.bordeaux-metropole.fr/explore/dataset/bor_naissances1900/api/)
+Données publiques de la ville de Bordeaux consultables à ce [lien](https://opendata.bordeaux-metropole.fr/explore/dataset/bor_top100prenoms/information/?disjunctive.premprenom)
 
 Site réalisé grâce à [Dash](https://plotly.com/dash/)
 
@@ -292,13 +262,55 @@ app.layout = html.Div(
 )
 
 
-def update_figure(dropdown_years, dropdown_gender, number_results):
+def update_figure(_year, _gender, _nb):
 
-    if dropdown_years:
-        fig = create_palmares_from_full_dataset(dropdown_years, dropdown_gender, number_results)
+    if _year:
+
+        if _gender=='tous':
+            mask = (full_df['année']==int(_year))
+        else:
+            mask = (full_df['année']==int(_year)) & (full_df['sexe']==_gender)
+
+        data_used = full_df[mask]  
+
+        data_used.reset_index(drop=True, inplace=True)
+
+        data_used.sort_values(by=['nb', 'prénom'], ascending=[False, True], inplace=True)
+
+        print(data_used)
+
+        _fig_height = 300 + int(_nb) * 20  # en fonction du nombre de noms que l'on veut afficher sur l'axe Y il faut augmenter la taille de la figure
+
+        fig = px.histogram(data_used[:int(_nb)],
+                            x="nb",
+                            y="prénom",
+                            width=900, 
+                            height=_fig_height,
+                            )
+
+        fig.update_layout(margin=dict(
+                                    l=20,
+                                    r=20,
+                                    b=50,
+                                    t=100,
+                                    pad=10
+                                    ),
+                                    paper_bgcolor="darkgray",
+                                    title=f"Année {str(_year)}", 
+                                    title_x=0.5
+                                )
+
+        fig.update_xaxes(title="")
+        fig.update_yaxes(title="",
+                        autorange='reversed'
+                        )
+
+        fig.update_traces(hovertemplate='<i>Total %{y} : </i>' + '%{x}')
+
         return fig
-    else:
-        return html.Div(children=''''''),
+    
+
+########################################################################################
 
 
 # Callback et figure update pour page 2
@@ -313,10 +325,48 @@ def update_figure(dropdown_years, dropdown_gender, number_results):
 def update_figure_from_name(dropdown_names):
 
     if dropdown_names:
-        fig = create_palmares_from_name(dropdown_names)
+
+        data_used = full_df[full_df['prénom']==dropdown_names].sort_values(by='année', ascending=False)
+        
+        data_used.reset_index(drop=True, inplace=True)
+
+        _nb = 25
+
+        fig = px.histogram(data_used.head(_nb),
+                            x="année",
+                            y="nb",
+                            width=700, 
+                            height=700,
+                            nbins=(len(data_used))
+                            )
+
+        fig.update_layout(margin=dict(
+                                    l=20,
+                                    r=20,
+                                    b=50,
+                                    t=100,
+                                    pad=10
+                                    ),
+                                    paper_bgcolor="darkgray",
+                                    title=f"Années où {data_used['prénom'].iloc[0]} a été dans le top 100", 
+                                    title_x=0.5,
+                                    bargap=0.1
+                                )
+
+        fig.update_xaxes(title="")
+        fig.update_yaxes(title="", 
+                         )
+
+        fig.update_traces(hovertemplate='<i>Total année %{x} : </i>' + '%{y}',
+                        xbins=dict(size=1)
+                        )
+
         return fig
     else:
         return html.Div(children=''''''),
+
+
+########################################################################################
 
 
 @app.callback(
@@ -395,4 +445,4 @@ def render_page_content(pathname):
 
 
 if __name__ == '__main__':
-    app.run_server(debug=False)
+    app.run_server(debug=True)
